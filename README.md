@@ -1,6 +1,6 @@
 # Liquid Glass travel showcase
 
-Six SwiftUI screens (and one scrolled variant) that show Apple's Liquid Glass on iOS 27: a satellite map with floating glass controls and a glass sheet, glass toolbars over photography, the iOS 27 prominent tab and toolbar APIs, turn-by-turn glass over a live map, and a booking sheet. It's a showcase for the [liquid-glass](https://github.com/heyparsadev/liquid-glass-skill) plugin for Claude, which teaches Claude the APIs and rules these screens follow. The iOS 27 update of the plugin is on its [`claude/ios27-liquid-glass-update`](https://github.com/heyparsadev/liquid-glass-skill/tree/claude/ios27-liquid-glass-update) branch; its main branch is still the iOS 26 version.
+Six SwiftUI screens (and one scrolled variant) that show Apple's Liquid Glass on iOS 27: a satellite map with floating glass controls and a glass sheet, glass toolbars over photography, the iOS 27 prominent tab and toolbar APIs, turn-by-turn glass over a live map, and a booking sheet. It's a showcase for the [liquid-glass](https://github.com/heyparsadev/liquid-glass-skill) plugin for Claude, which teaches Claude the APIs and rules these screens follow. Version 2 of the plugin covers iOS 26 and iOS 27, and its contrast advice comes from the measurements on these screens.
 
 | Explore | Place | Discover |
 |---|---|---|
@@ -81,7 +81,7 @@ It changes the simulator it runs on, so don't use that simulator meanwhile:
 
 Two kinds of element fall below the bar:
 
-- **Text drawn by iOS that an app can't restyle.** The search field's placeholder on Explore (3.8:1 light, 2.6:1 dark). The navigation subtitles in light mode: 3.3:1 on Trip, 3.4:1 on Discover, and 2.4:1 on scrolled Discover, where the subtitle sits on the blurred edge of the card that scrolled under the bar. MapKit's attribution: the "Legal" link (2.5:1 over Explore's imagery, 3.7–3.8:1 on Navigation) and the Maps logo on Explore (2.8:1).
+- **Text drawn by iOS.** The search field's placeholder on Explore (3.8:1 light, 2.6:1 dark). The navigation subtitles in light mode: 3.3:1 on Trip, 3.4:1 on Discover, and 2.4:1 on scrolled Discover, where the subtitle sits on the blurred edge of the card that scrolled under the bar. `foregroundStyle` doesn't reach either; with an inline title, as on scrolled Discover, a `.subtitle` toolbar item could replace the subtitle with styled text, which these screens don't use. MapKit's attribution: the "Legal" link (2.5:1 over Explore's imagery, 3.7–3.8:1 on Navigation) and the Maps logo on Explore (2.8:1).
 - **Decorative glyphs.** The white glyphs on the system-colored map pins and list icons on Explore (1.7–3.5:1). The list names every place, so the glyphs carry no meaning alone.
 
 What keeps the rest above the bar:
@@ -89,7 +89,7 @@ What keeps the rest above the bar:
 - On glass, text is `.primary` and the hierarchy comes from size and weight. The system `.secondary` measured 2.3–3.9:1 there.
 - On opaque content, `Color.supporting` (`Sources/App/SupportingText.swift`) replaces `.secondary` for subtitles and captions: the system style is 3.3:1 on the light grouped background.
 - The accent color is `#0066CC`. A white label on the system blue measures 3.2–3.5:1, on this one 5.6:1.
-- `SheetScrim` (`Sources/App/SheetScrim.swift`) sinks the backdrop by 40% under the system sheet in dark mode only. The sheet material takes on the colors behind it, and over bright imagery primary text was at 4.2:1. The skill says regular glass needs no dimming, so this is a deliberate trade for photo and map backdrops.
+- `SheetScrim` (`Sources/App/SheetScrim.swift`) sinks the backdrop by 40% under the system sheet in dark mode only. The sheet material takes on the colors behind it, and over bright imagery primary text was at 4.2:1. The skill's rule is that regular glass needs no dimming; it names this case, a sheet over bright imagery in dark mode, as the exception.
 - Where a pale photo sits under the status bar and toolbar (Place), the toolbar uses the dark glyphs in both appearances. On Explore the status bar does too, over the map's haze.
 
 ## Notes
