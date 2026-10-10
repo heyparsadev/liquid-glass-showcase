@@ -3,25 +3,35 @@ import Testing
 import UIKit
 @testable import Showcase
 
-/// Supporting text (subtitles, captions) has to reach 4.5:1 on glass. The system `.secondary`
-/// measured 2.7–3.9:1 there. The backgrounds below are the palest light glass and the brightest
-/// dark glass measured in the captured screenshots.
+/// Supporting text (subtitles, captions) on opaque content has to reach 4.5:1. The system
+/// `.secondary` measures 3.3:1 on the light grouped background. On glass the style is not used:
+/// the skill asks for the system's vibrant styles there. The backgrounds below are the system
+/// backgrounds this style sits on in the captured screens.
 @MainActor
 struct SupportingTextTests {
     typealias RGB = (r: Double, g: Double, b: Double)
 
-    @Test func meetsAAOnTheLightestLightGlass() {
-        #expect(contrast(of: .supporting, over: (235, 235, 235), style: .light) >= 4.5)
+    private let lightBackgrounds: [RGB] = [(255, 255, 255), (242, 242, 247)]
+    private let darkBackgrounds: [RGB] = [(0, 0, 0), (28, 28, 30)]
+
+    @Test func meetsAAOnTheLightBackgrounds() {
+        for background in lightBackgrounds {
+            #expect(contrast(of: .supporting, over: background, style: .light) >= 4.5, "\(background)")
+        }
     }
 
-    @Test func meetsAAOnTheBrightestDarkGlass() {
-        #expect(contrast(of: .supporting, over: (83, 104, 132), style: .dark) >= 4.5)
+    @Test func meetsAAOnTheDarkBackgrounds() {
+        for background in darkBackgrounds {
+            #expect(contrast(of: .supporting, over: background, style: .dark) >= 4.5, "\(background)")
+        }
     }
 
     @Test func staysSofterThanPrimarySoTheHierarchyReads() {
-        let light: RGB = (235, 235, 235), dark: RGB = (83, 104, 132)
-        #expect(contrast(of: .supporting, over: light, style: .light) < contrast(of: .primary, over: light, style: .light))
-        #expect(contrast(of: .supporting, over: dark, style: .dark) < contrast(of: .primary, over: dark, style: .dark))
+        for (background, style) in lightBackgrounds.map({ ($0, UIUserInterfaceStyle.light) })
+                                 + darkBackgrounds.map({ ($0, UIUserInterfaceStyle.dark) }) {
+            #expect(contrast(of: .supporting, over: background, style: style)
+                    < contrast(of: .primary, over: background, style: style), "\(background)")
+        }
     }
 
     // MARK: WCAG contrast
