@@ -5,18 +5,31 @@ import Testing
 @MainActor
 struct ScreenIDTests {
     @Test func launchValuesMapToScreens() {
-        #expect(ScreenID(launchValue: 1) == .explore)
-        #expect(ScreenID(launchValue: 2) == .place)
-        #expect(ScreenID(launchValue: 3) == .discover)
-        #expect(ScreenID(launchValue: 4) == .trip)
-        #expect(ScreenID(launchValue: 5) == .navigation)
-        #expect(ScreenID(launchValue: 6) == .booking)
-        #expect(ScreenID(launchValue: 7) == .discoverScrolled)
+        #expect(ScreenID.launch(1) == .explore)
+        #expect(ScreenID.launch(2) == .place)
+        #expect(ScreenID.launch(3) == .discover)
+        #expect(ScreenID.launch(4) == .trip)
+        #expect(ScreenID.launch(5) == .navigation)
+        #expect(ScreenID.launch(6) == .booking)
+        #expect(ScreenID.launch(7) == .discoverScrolled)
     }
 
-    @Test(arguments: [0, -1, 8, 99])
+    @Test func aMissingLaunchValueOpensTheLauncher() {
+        // UserDefaults returns 0 when there is no `-screen` argument.
+        #expect(ScreenID.launch(0) == nil)
+    }
+
+    @Test(arguments: [-1, 8, 99])
     func unknownLaunchValuesFallBackToExplore(value: Int) {
-        #expect(ScreenID(launchValue: value) == .explore)
+        #expect(ScreenID.launch(value) == .explore)
+    }
+
+    @Test func everyScreenHasATitleAndASummaryForTheLauncher() {
+        for screen in ScreenID.allCases {
+            #expect(!screen.title.isEmpty, "\(screen)")
+            #expect(!screen.summary.isEmpty, "\(screen)")
+        }
+        #expect(Set(ScreenID.allCases.map(\.title)).count == ScreenID.allCases.count)
     }
 
     @Test func slugsAreTwoDigitIndexAndName() {
