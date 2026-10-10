@@ -35,8 +35,8 @@ struct Launcher: View {
     }
 }
 
-/// A small pill under the Dynamic Island. It is a browsing aid, not part of the showcase UI,
-/// so it uses a plain material, never glass.
+/// A small pill under the Dynamic Island. It is a browsing aid, not part of the showcase UI, so it
+/// is a plain dark fill: no glass (it would sit on the screens' own glass) and no material.
 private struct BackToList: View {
     let action: () -> Void
 
@@ -44,9 +44,10 @@ private struct BackToList: View {
         Button(action: action) {
             Label("Screens", systemImage: "chevron.backward")
                 .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(.regularMaterial, in: .capsule)
+                .background(.black.opacity(0.65), in: .capsule)
         }
         .buttonStyle(.plain)
         .padding(.top, 52)

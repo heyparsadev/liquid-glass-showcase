@@ -103,6 +103,7 @@ private struct NearbySheet: View {
                 Section {
                     ForEach(SampleData.kyotoPlaces) { place in
                         NearbyRow(place: place)
+                            .listRowSeparator(.hidden)
                     }
                 } header: {
                     // Color.primary, not .primary: a section header would dim the hierarchical one.
@@ -147,6 +148,7 @@ private struct NearbyRow: View {
                 Image(systemName: "star.fill")
             }
             .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.primary)          // otherwise the star takes the accent color
         }
         .accessibilityElement(children: .combine)
     }

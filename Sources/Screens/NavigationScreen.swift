@@ -2,10 +2,10 @@ import MapKit
 import SwiftUI
 
 /// Screen 5 · Turn-by-turn (New York).
-/// Functional layer: the maneuver banner, the trip status capsule, and the End button,
-/// separate glass shapes in one container, never stacked. End is destructive, so it is a
-/// plain glass button with the destructive role (red), not the prominent one. Content layer:
-/// the map, the route, the destination marker, and the location puck.
+/// Functional layer: the maneuver banner (its own glass shape), and the trip status capsule
+/// with the End button (two glass shapes in one container), never stacked. End is
+/// destructive, so it is a plain glass button with the destructive role, not the prominent
+/// one. Content layer: the map, the route, the destination marker, and the location puck.
 struct NavigationScreen: View {
     var body: some View {
         ZStack {
