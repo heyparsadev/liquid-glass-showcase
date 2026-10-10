@@ -1,5 +1,9 @@
 *.xcodeproj/
+Info.plist
 build/
 DerivedData/
-.DS_Store
 xcuserdata/
+.DS_Store
+__pycache__/
+.pytest_cache/
+photos/inbox/

@@ -1,0 +1,6 @@
+01-explore
+02-place
+03-discover
+04-trip
+05-navigation
+06-booking
