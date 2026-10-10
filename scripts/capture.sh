@@ -4,7 +4,7 @@
 #   scripts/capture.sh                  all six screens, light and dark
 #   scripts/capture.sh --only 02-place  one screen, light and dark
 #
-# Env: DEVICE_NAME (default "iPhone 18 Pro"), MAP_WAIT (default 10), WAIT (default 4).
+# Env: DEVICE_NAME (default "iPhone 18 Pro"), MAP_WAIT (default 25), WAIT (default 4).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -66,7 +66,7 @@ for appearance in light dark; do
     xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
     xcrun simctl launch "$UDID" "$BUNDLE_ID" -screen "$index" >/dev/null
     case "$slug" in
-      *explore|*navigation) sleep "${MAP_WAIT:-10}" ;;
+      *explore|*navigation) sleep "${MAP_WAIT:-25}" ;;
       *) sleep "${WAIT:-4}" ;;
     esac
     xcrun simctl io "$UDID" screenshot --type=png "$ROOT/screenshots/$appearance/$slug.png" >/dev/null 2>&1
