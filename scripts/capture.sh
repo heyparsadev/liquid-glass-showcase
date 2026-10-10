@@ -57,6 +57,14 @@ echo "building…"
   -sdk iphonesimulator -destination "id=$UDID" -derivedDataPath build -quiet build)
 xcrun simctl install "$UDID" "$ROOT/build/Build/Products/Debug-iphonesimulator/Showcase.app"
 
+# Another app in the foreground when ours launches puts a "< App name" return link in the status
+# bar. Close every other running app first so the status bar is clean.
+xcrun simctl spawn "$UDID" launchctl list 2>/dev/null \
+  | sed -n 's/.*UIKitApplication:\([^[]*\)\[.*/\1/p' \
+  | while IFS= read -r other; do
+      [ "$other" = "$BUNDLE_ID" ] || xcrun simctl terminate "$UDID" "$other" >/dev/null 2>&1 || true
+    done
+
 xcrun simctl status_bar "$UDID" override --time "9:41" \
   --dataNetwork wifi --wifiMode active --wifiBars 3 \
   --cellularMode active --cellularBars 4 \

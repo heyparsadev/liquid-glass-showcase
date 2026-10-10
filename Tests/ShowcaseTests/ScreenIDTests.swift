@@ -11,9 +11,10 @@ struct ScreenIDTests {
         #expect(ScreenID(launchValue: 4) == .trip)
         #expect(ScreenID(launchValue: 5) == .navigation)
         #expect(ScreenID(launchValue: 6) == .booking)
+        #expect(ScreenID(launchValue: 7) == .discoverScrolled)
     }
 
-    @Test(arguments: [0, -1, 7, 99])
+    @Test(arguments: [0, -1, 8, 99])
     func unknownLaunchValuesFallBackToExplore(value: Int) {
         #expect(ScreenID(launchValue: value) == .explore)
     }
@@ -21,6 +22,7 @@ struct ScreenIDTests {
     @Test func slugsAreTwoDigitIndexAndName() {
         #expect(ScreenID.explore.slug == "01-explore")
         #expect(ScreenID.booking.slug == "06-booking")
+        #expect(ScreenID.discoverScrolled.slug == "07-discover-scrolled")
     }
 
     @Test func slugsMatchTheCaptureList() throws {

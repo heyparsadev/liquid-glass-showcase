@@ -4,11 +4,14 @@ import SwiftUI
 /// Functional layer: the system tab bar with the iOS 27 prominent Trips tab, and the
 /// navigation bar. Content layer: the destination cards.
 struct DiscoverScreen: View {
+    /// A destination id to scroll the feed to shortly after launch (the scrolled screenshot).
+    var scrollsTo: String? = nil
+
     var body: some View {
         TabView {
             Tab("Discover", systemImage: "sparkles") {
                 NavigationStack {
-                    DiscoverFeed()
+                    DiscoverFeed(scrollsTo: scrollsTo)
                 }
             }
             Tab("Map", systemImage: "map") {
@@ -41,17 +44,31 @@ struct DiscoverScreen: View {
 }
 
 private struct DiscoverFeed: View {
+    let scrollsTo: String?
+    @State private var position = ScrollPosition()
+
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 20) {
+            VStack(spacing: 20) {
                 ForEach(SampleData.destinations) { destination in
                     DestinationCard(destination: destination)
+                        .id(destination.id)
                 }
             }
+            .scrollTargetLayout()
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
         }
+        .scrollPosition($position)
+        .task {
+            // The scrolled screenshot: jump (no animation, so the result is the same every run)
+            // to the given card once the first layout is done.
+            guard let scrollsTo else { return }
+            try? await Task.sleep(for: .milliseconds(300))
+            position.scrollTo(id: scrollsTo, anchor: .top)
+        }
         .scrollEdgeEffectStyle(.hard, for: .bottom)
+        .scrollEdgeEffectStyle(.hard, for: .top)
         .navigationTitle("Discover")
         .navigationSubtitle("Picked for this autumn")
         .toolbar {

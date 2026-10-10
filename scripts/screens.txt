@@ -4,3 +4,4 @@
 04-trip
 05-navigation
 06-booking
+07-discover-scrolled

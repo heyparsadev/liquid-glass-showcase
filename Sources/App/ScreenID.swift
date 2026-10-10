@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// The six screens in capture order. `rawValue` is the `-screen` launch argument.
+/// The screens in capture order. `rawValue` is the `-screen` launch argument. The seventh is
+/// Discover scrolled down, which shows the lower cards and the minimized tab bar.
 enum ScreenID: Int, CaseIterable {
-    case explore = 1, place, discover, trip, navigation, booking
+    case explore = 1, place, discover, trip, navigation, booking, discoverScrolled
 
     /// Missing (UserDefaults returns 0) or unknown values open Explore.
     init(launchValue: Int) {
@@ -18,6 +19,7 @@ enum ScreenID: Int, CaseIterable {
         case .trip: "trip"
         case .navigation: "navigation"
         case .booking: "booking"
+        case .discoverScrolled: "discover-scrolled"
         }
         return (rawValue < 10 ? "0" : "") + "\(rawValue)-\(name)"
     }
@@ -31,6 +33,7 @@ enum ScreenID: Int, CaseIterable {
         case .trip: TripScreen()
         case .navigation: NavigationScreen()
         case .booking: BookingScreen()
+        case .discoverScrolled: DiscoverScreen(scrollsTo: "new-york")
         }
     }
 }
