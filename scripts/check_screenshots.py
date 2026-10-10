@@ -4,7 +4,8 @@
   python3 -I scripts/check_screenshots.py screenshots [--only 02-place]
 
 Fails (exit 1) when a screenshot is missing, has the wrong size, looks blank, or
-(for the satellite map screen) still shows MapKit's flat loading grid.
+(for the two map screens) still shows MapKit's flat loading grid. It also fails when
+--only names a screen that is not in the list.
 """
 from __future__ import annotations
 
@@ -16,10 +17,13 @@ from PIL import Image, ImageStat
 
 EXPECTED_SIZE = (1206, 2622)            # iPhone 18 Pro, @3x
 APPEARANCES = ("light", "dark")
-SATELLITE_SCREENS = {"01-explore"}
+MAP_SCREENS = {                         # slug -> (top, bottom) of the checked band, as fractions of the height
+    "01-explore": (0.10, 0.45),         # above the half-height sheet
+    "05-navigation": (0.20, 0.80),      # between the banner and the trip bar
+}
 BLANK_DOMINANT_FRACTION = 0.95          # 95%+ of pixels within ±6 levels of one gray = blank
 FLAT_TILE_STDDEV = 2.0
-MAX_FLAT_FRACTION = 0.5
+MAX_FLAT_FRACTION = 0.4                 # measured on real frames: loaded maps 0-24% flat, MapKit's grid 55-100%
 
 
 def read_slugs(path: Path) -> list[str]:
@@ -59,11 +63,15 @@ def check_image(path: Path, slug: str, size: tuple[int, int] = EXPECTED_SIZE) ->
             problems.append(f"{path}: size {image.size}, expected {size}")
         if dominant_fraction(image) > BLANK_DOMINANT_FRACTION:
             problems.append(f"{path}: looks blank")
-        if slug in SATELLITE_SCREENS:
+        if slug in MAP_SCREENS:
+            top, bottom = MAP_SCREENS[slug]
             width, height = image.size
-            band = (0, int(height * 0.10), width, int(height * 0.45))   # above the half-height sheet
-            if flat_tile_fraction(image, band) > MAX_FLAT_FRACTION:
-                problems.append(f"{path}: map tiles probably not loaded")
+            share = flat_tile_fraction(image, (0, int(height * top), width, int(height * bottom)))
+            if share > MAX_FLAT_FRACTION:
+                problems.append(
+                    f"{path}: map tiles probably not loaded "
+                    f"({share:.0%} of the map area is flat, limit {MAX_FLAT_FRACTION:.0%})"
+                )
     return problems
 
 
@@ -77,6 +85,9 @@ def main(argv: list[str] | None = None) -> int:
     slugs = read_slugs(args.screens)
     if args.only:
         slugs = [slug for slug in slugs if slug == args.only]
+        if not slugs:
+            print(f"error: no screen named {args.only!r} in {args.screens}", file=sys.stderr)
+            return 1
     problems = [
         problem
         for appearance in APPEARANCES

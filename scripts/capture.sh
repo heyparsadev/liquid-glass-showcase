@@ -19,7 +19,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-if [ -n "$ONLY" ] && ! grep -qx -- "$ONLY" "$ROOT/scripts/screens.txt"; then
+if [ -n "$ONLY" ] && ! grep -qxF -- "$ONLY" "$ROOT/scripts/screens.txt"; then
   echo "error: unknown screen '$ONLY' (see scripts/screens.txt)" >&2
   exit 2
 fi
@@ -38,12 +38,19 @@ if [ -z "$UDID" ]; then
   exit 1
 fi
 
-cleanup() { xcrun simctl status_bar "$UDID" clear >/dev/null 2>&1 || true; }
+ORIGINAL_APPEARANCE=""
+cleanup() {
+  xcrun simctl status_bar "$UDID" clear >/dev/null 2>&1 || true
+  case "$ORIGINAL_APPEARANCE" in
+    light|dark) xcrun simctl ui "$UDID" appearance "$ORIGINAL_APPEARANCE" >/dev/null 2>&1 || true ;;
+  esac
+}
 trap cleanup EXIT
 trap 'exit 130' INT TERM
 
 xcrun simctl boot "$UDID" >/dev/null 2>&1 || true
 xcrun simctl bootstatus "$UDID" -b >/dev/null
+ORIGINAL_APPEARANCE="$(xcrun simctl ui "$UDID" appearance 2>/dev/null || true)"
 
 echo "building…"
 (cd "$ROOT" && xcodegen generate --quiet && xcodebuild -project Showcase.xcodeproj -scheme Showcase \
@@ -59,21 +66,29 @@ for appearance in light dark; do
   xcrun simctl ui "$UDID" appearance "$appearance"
   mkdir -p "$ROOT/screenshots/$appearance"
   index=0
-  while IFS= read -r slug; do
+  while IFS= read -r slug || [ -n "$slug" ]; do
     [ -z "$slug" ] && continue
     index=$((index + 1))
     if [ -n "$ONLY" ] && [ "$slug" != "$ONLY" ]; then continue; fi
+    target="$ROOT/screenshots/$appearance/$slug.png"
+    rm -f "$target"                        # a failed capture must not leave an old image for the checker
     xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
-    xcrun simctl launch "$UDID" "$BUNDLE_ID" -screen "$index" >/dev/null
+    pid="$(xcrun simctl launch "$UDID" "$BUNDLE_ID" -screen "$index" | awk -F': ' '{print $2}')"
     case "$slug" in
       *explore|*navigation) sleep "${MAP_WAIT:-25}" ;;
       *) sleep "${WAIT:-4}" ;;
     esac
-    xcrun simctl io "$UDID" screenshot --type=png "$ROOT/screenshots/$appearance/$slug.png" >/dev/null 2>&1
+    if ! kill -0 "$pid" 2>/dev/null; then
+      echo "error: the app exited before the $appearance/$slug screenshot (crashed?)" >&2
+      exit 1
+    fi
+    if ! shot_error="$(xcrun simctl io "$UDID" screenshot --type=png "$target" 2>&1 >/dev/null)"; then
+      echo "error: screenshot of $appearance/$slug failed: $shot_error" >&2
+      exit 1
+    fi
     echo "captured $appearance/$slug"
   done < "$ROOT/scripts/screens.txt"
 done
-xcrun simctl ui "$UDID" appearance light
 
 check_args=("$ROOT/screenshots")
 if [ -n "$ONLY" ]; then check_args+=(--only "$ONLY"); fi

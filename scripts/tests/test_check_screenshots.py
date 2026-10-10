@@ -1,6 +1,11 @@
+from pathlib import Path
+
+import pytest
 from PIL import Image
 
 import check_screenshots as cs
+
+FIXTURES = Path(__file__).parent / "fixtures"
 
 SIZE = cs.EXPECTED_SIZE
 
@@ -71,3 +76,42 @@ def test_main_fails_on_missing_screens(tmp_path):
     screens = tmp_path / "screens.txt"
     screens.write_text("01-explore\n")
     assert cs.main([str(tmp_path), "--screens", str(screens)]) == 1
+
+
+@pytest.mark.parametrize("slug", ["01-explore", "05-navigation"])
+def test_a_real_unloaded_map_frame_is_flagged(slug):
+    """Frames captured from the simulator about 3 s after launch, while MapKit still shows its grid."""
+    problems = cs.check_image(FIXTURES / f"unloaded-{slug}.png", slug)
+    assert any("map tiles" in p for p in problems)
+
+
+def test_navigation_screen_with_flat_map_is_flagged(tmp_path):
+    image = noise()
+    width, height = SIZE
+    image.paste((210, 210, 205), (0, int(height * 0.15), width, int(height * 0.85)))
+    path = tmp_path / "05-navigation.png"
+    image.save(path)
+    assert any("map tiles" in p for p in cs.check_image(path, "05-navigation"))
+
+
+def test_navigation_screen_with_texture_passes(tmp_path):
+    path = tmp_path / "05-navigation.png"
+    noise().save(path)
+    assert cs.check_image(path, "05-navigation") == []
+
+
+def test_flat_map_message_reports_the_measured_share(tmp_path):
+    path = tmp_path / "01-explore.png"
+    Image.new("RGB", SIZE, (210, 210, 205)).save(path)
+    message = next(p for p in cs.check_image(path, "01-explore") if "map tiles" in p)
+    assert "100%" in message
+
+
+def test_main_fails_when_only_matches_no_screen(tmp_path, capsys):
+    screens = tmp_path / "screens.txt"
+    screens.write_text("01-explore\n02-place\n")
+
+    code = cs.main([str(tmp_path), "--screens", str(screens), "--only", "0.-place"])
+
+    assert code == 1
+    assert "no screen" in capsys.readouterr().err
