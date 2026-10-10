@@ -13,8 +13,12 @@ The photographer comes from the --sources JSON file when it lists the slug:
 
   {"kyoto": {"photographer": "Jane Doe", "url": "https://unsplash.com/photos/<title>-<id>"}}
 
+or, when the name was not kept, an explicit declaration that lists the photo as such:
+
+  {"kyoto": {"unrecorded": true}}
+
 and otherwise from the file name, when it is named the way Unsplash names downloads,
-"<photographer>-<photo-id>-unsplash.jpg". Every photo in the catalog needs a credit, or
+"<photographer>-<photo-id>-unsplash.jpg". Every photo in the catalog needs one of these, or
 nothing is written. While building, --allow-missing-credits imports anyway and leaves
 the photo out of CREDITS.md until its credit is known.
 """
@@ -40,12 +44,12 @@ _UNSPLASH_URL = re.compile(r"https://unsplash\.com/photos/(?:[^/?#]*-)?(?P<id>[A
 @dataclass(frozen=True)
 class Credit:
     slug: str
-    photographer: str
-    photo_id: str
+    photographer: str | None          # None: declared as not recorded
+    photo_id: str | None = None
 
     @property
-    def url(self) -> str:
-        return f"https://unsplash.com/photos/{self.photo_id}"
+    def url(self) -> str | None:
+        return f"https://unsplash.com/photos/{self.photo_id}" if self.photo_id else None
 
 
 def parse_unsplash_filename(name: str) -> tuple[str, str]:
@@ -77,8 +81,11 @@ def load_sources(path: Path | None) -> dict[str, Credit]:
         raise ValueError(f"{path} is not valid JSON: {problem}") from None
     credits: dict[str, Credit] = {}
     for slug, entry in data.items():
+        if isinstance(entry, dict) and entry.get("unrecorded") is True:
+            credits[slug] = Credit(slug, None, None)
+            continue
         if not isinstance(entry, dict) or "photographer" not in entry or "url" not in entry:
-            raise ValueError(f"{path}: {slug} needs a photographer and a url")
+            raise ValueError(f'{path}: {slug} needs a photographer and a url (or "unrecorded": true)')
         try:
             credits[slug] = Credit(slug, entry["photographer"], photo_id_from_url(entry["url"]))
         except ValueError as problem:
@@ -156,10 +163,15 @@ def credits_markdown(credits: list[Credit]) -> str:
         "All photos are from [Unsplash](https://unsplash.com) and used under the "
         "[Unsplash License](https://unsplash.com/license).",
         "",
-        "| Asset | Photographer | Photo |",
-        "|---|---|---|",
     ]
-    lines += [f"| `{c.slug}` | {c.photographer} | {c.url} |" for c in credits]
+    if any(c.photographer is None for c in credits):
+        lines += [
+            "Where the photographer is listed as not recorded, the name wasn't kept when the photo "
+            "was downloaded. The license doesn't require attribution.",
+            "",
+        ]
+    lines += ["| Asset | Photographer | Photo |", "|---|---|---|"]
+    lines += [f"| `{c.slug}` | {c.photographer or 'not recorded'} | {c.url or ''} |" for c in credits]
     return "\n".join(lines) + "\n"
 
 

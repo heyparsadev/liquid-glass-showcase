@@ -299,3 +299,38 @@ def test_explicit_sources_path_must_exist(tmp_path, capsys):
 
     assert raised.value.code == 2
     assert "not found" in capsys.readouterr().err
+
+
+def test_credits_markdown_marks_unrecorded_photographers():
+    text = ip.credits_markdown([ip.Credit("kyoto", None, None), ip.Credit("santorini", "Jane Doe", "AbCdEfGhIjK")])
+    assert "| `kyoto` | not recorded |" in text
+    assert "| `santorini` | Jane Doe | https://unsplash.com/photos/AbCdEfGhIjK |" in text
+    assert "wasn't kept" in text
+
+
+def test_credits_markdown_stays_silent_about_unrecorded_when_all_are_named():
+    assert "not recorded" not in ip.credits_markdown([ip.Credit("kyoto", "Jane Doe", "AbCdEfGhIjK")])
+
+
+def test_sources_can_declare_a_photographer_as_not_recorded(tmp_path, capsys):
+    make_inbox(tmp_path, "santorai.jpeg")
+    sources = tmp_path / "sources.json"
+    sources.write_text(json.dumps({"santorini": {"unrecorded": True}}))
+
+    code = run(tmp_path, "--sources", str(sources), "santorini=santorai.jpeg")
+
+    assert code == 0
+    assert "| `santorini` | not recorded |" in (tmp_path / "CREDITS.md").read_text()
+    assert "no credit yet" not in capsys.readouterr().err        # declared, so not "missing"
+
+
+def test_unrecorded_has_to_be_true(tmp_path, capsys):
+    make_inbox(tmp_path, "santorai.jpeg")
+    sources = tmp_path / "sources.json"
+    sources.write_text(json.dumps({"santorini": {"unrecorded": False}}))
+
+    with pytest.raises(SystemExit) as raised:
+        run(tmp_path, "--sources", str(sources), "santorini=santorai.jpeg")
+
+    assert raised.value.code == 2
+    assert '"unrecorded": true' in capsys.readouterr().err
