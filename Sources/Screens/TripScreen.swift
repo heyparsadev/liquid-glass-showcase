@@ -81,7 +81,7 @@ private struct TripHeader: View {
     var body: some View {
         VStack(spacing: 0) {
             Color.clear
-                .frame(height: 190)
+                .frame(height: 210)
                 .overlay {
                     Image(trip.photo)
                         .resizable()

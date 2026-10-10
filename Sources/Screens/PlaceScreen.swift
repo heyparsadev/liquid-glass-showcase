@@ -16,6 +16,9 @@ struct PlaceScreen: View {
             }
             .ignoresSafeArea(edges: .top)
             .scrollEdgeEffectStyle(.hard, for: .bottom)
+            // The photo is pale sky at the top. In dark mode the system would draw white glyphs
+            // there (2.1-2.4:1), so use the dark glyphs in both appearances.
+            .toolbarColorScheme(.light, for: .navigationBar, .statusBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Back", systemImage: "chevron.backward") {}
@@ -34,6 +37,7 @@ struct PlaceScreen: View {
 
 private struct PlaceHero: View {
     let place: PlaceDetail
+    @ScaledMetric(relativeTo: .largeTitle) private var titleSize = 48.0
 
     var body: some View {
         Color.clear
@@ -60,7 +64,7 @@ private struct PlaceHero: View {
                         .tracking(1.2)
                         .foregroundStyle(.white)
                     Text(place.name)
-                        .font(.system(size: 48, weight: .bold, design: .serif))
+                        .font(.system(size: titleSize, weight: .bold, design: .serif))
                         .foregroundStyle(.white)
                 }
                 .padding(20)

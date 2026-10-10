@@ -3,8 +3,9 @@ import SwiftUI
 
 /// Screen 5 · Turn-by-turn (New York).
 /// Functional layer: the maneuver banner, the trip status capsule, and the End button,
-/// separate glass shapes in one container, never stacked. Content layer: the map,
-/// the route, the destination marker, and the location puck.
+/// separate glass shapes in one container, never stacked. End is destructive, so it is a
+/// plain glass button with the destructive role (red), not the prominent one. Content layer:
+/// the map, the route, the destination marker, and the location puck.
 struct NavigationScreen: View {
     var body: some View {
         ZStack {
@@ -45,7 +46,6 @@ private struct ManeuverBanner: View {
                     .monospacedDigit()
                 Text(SampleData.nextTurnInstruction)
                     .font(.headline)
-                    .foregroundStyle(.supporting)
             }
             Spacer(minLength: 0)
         }
@@ -72,15 +72,14 @@ private struct TripBar: View {
                 .glassEffect(.regular, in: .capsule)
                 .accessibilityElement(children: .combine)
 
-                Button {} label: {
+                Button(role: .destructive) {} label: {
                     Image(systemName: "xmark")
                         .font(.title3.weight(.bold))
                         .frame(width: 30, height: 30)
                 }
-                .buttonStyle(.glassProminent)
+                .buttonStyle(.glass)
                 .buttonBorderShape(.circle)
                 .controlSize(.large)
-                .tint(.red)
                 .accessibilityLabel("End Route")
             }
         }
@@ -93,7 +92,6 @@ private struct TripBar: View {
                 .monospacedDigit()
             Text(caption)
                 .font(.caption)
-                .foregroundStyle(.supporting)
         }
     }
 }
@@ -103,7 +101,7 @@ private struct LocationPuck: View {
         Circle()
             .fill(.blue)
             .frame(width: 22, height: 22)
-            .overlay(Circle().stroke(.white, lineWidth: 4))
+            .overlay { Circle().stroke(.white, lineWidth: 4) }
             .shadow(radius: 4)
             .accessibilityLabel("Your location")
     }

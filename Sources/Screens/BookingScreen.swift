@@ -16,7 +16,7 @@ struct BookingScreen: View {
                     Image(booking.photo)
                         .resizable()
                         .scaledToFill()
-                        .scaleEffect(1.35, anchor: .bottom)
+                        .scaleEffect(1.42, anchor: .bottom)
                 }
                 .overlay(alignment: .top) {
                     // Keeps the white title readable wherever the photo is bright.
@@ -41,6 +41,7 @@ struct BookingScreen: View {
 
 private struct LodgeTitle: View {
     let booking: Booking
+    @ScaledMetric(relativeTo: .largeTitle) private var titleSize = 40.0
 
     var body: some View {
         VStack(spacing: 6) {
@@ -48,7 +49,7 @@ private struct LodgeTitle: View {
                 .font(.caption.weight(.semibold))
                 .tracking(1.2)
             Text(booking.lodge)
-                .font(.system(size: 40, weight: .bold, design: .serif))
+                .font(.system(size: titleSize, weight: .bold, design: .serif))
             Label {
                 Text("\(booking.rating, format: .number.precision(.fractionLength(1))) · \(booking.reviewCount)")
             } icon: {
@@ -88,12 +89,13 @@ private struct BookingSheet: View {
                     }
                 } header: {
                     Text("Price details")
-                        .foregroundStyle(.supporting)
+                        .foregroundStyle(Color.primary)
                 }
             }
             .scrollContentBackground(.hidden)
             .listSectionSpacing(.compact)
-            .environment(\.defaultMinListRowHeight, 40)
+            .environment(\.defaultMinListRowHeight, 38)
+            .contentMargins(.top, 8, for: .scrollContent)
             .navigationTitle("Your Stay")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
@@ -114,7 +116,7 @@ private struct BookingSheet: View {
     private func row(_ label: String, _ value: String) -> some View {
         LabeledContent(label) {
             Text(value)
-                .foregroundStyle(.supporting)
+                .foregroundStyle(.primary)
         }
     }
 
