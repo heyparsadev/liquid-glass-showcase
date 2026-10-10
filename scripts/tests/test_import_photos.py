@@ -2,7 +2,7 @@ import json
 import random
 
 import pytest
-from PIL import Image
+from PIL import Image, ImageFile
 
 import import_photos as ip
 
@@ -156,13 +156,146 @@ def test_main_asks_for_a_photographer_when_the_file_name_gives_none(tmp_path, ca
     inbox = tmp_path / "inbox"
     inbox.mkdir()
     make_jpeg(inbox / "santorai.jpeg")
+    (tmp_path / "sources.json").write_text("{}")
 
     with pytest.raises(SystemExit) as raised:
         ip.main([
             "--inbox", str(inbox), "--assets", str(tmp_path / "a"), "--credits", str(tmp_path / "c.md"),
-            "--sources", str(tmp_path / "missing.json"), "santorini=santorai.jpeg",
+            "--sources", str(tmp_path / "sources.json"), "santorini=santorai.jpeg",
         ])
 
     assert raised.value.code == 2
     err = capsys.readouterr().err
     assert "photographer" in err and "santorini" in err
+    assert not (tmp_path / "a").exists()            # nothing is written when a credit is missing
+
+
+def run(tmp_path, *args, inbox=None):
+    """Run main() against a temp inbox, assets and credits file; returns the exit code."""
+    return ip.main([
+        "--inbox", str(inbox or tmp_path / "inbox"), "--assets", str(tmp_path / "Assets.xcassets"),
+        "--credits", str(tmp_path / "CREDITS.md"), *args,
+    ])
+
+
+def make_inbox(tmp_path, *names):
+    inbox = tmp_path / "inbox"
+    inbox.mkdir(exist_ok=True)
+    for name in names:
+        make_jpeg(inbox / name, size=(800, 600))
+    return inbox
+
+
+def write_sources(tmp_path, **entries):
+    path = tmp_path / "sources.json"
+    path.write_text(json.dumps({
+        slug: {"photographer": name, "url": f"https://unsplash.com/photos/some-title-{photo_id}"}
+        for slug, (name, photo_id) in entries.items()
+    }))
+    return path
+
+
+def test_cut_off_jpeg_is_reported_and_the_pillow_flag_is_restored(tmp_path, capsys):
+    src = tmp_path / "cut.jpg"
+    make_noisy_progressive_jpeg(src)
+    src.write_bytes(src.read_bytes()[:-300])
+
+    ip.process_image(src, tmp_path / "out.jpg")
+
+    assert "cut off" in capsys.readouterr().err
+    assert ImageFile.LOAD_TRUNCATED_IMAGES is False
+
+
+def test_intact_jpeg_gives_no_warning(tmp_path, capsys):
+    src = tmp_path / "ok.jpg"
+    make_jpeg(src, size=(400, 300))
+
+    ip.process_image(src, tmp_path / "out.jpg")
+
+    assert capsys.readouterr().err == ""
+
+
+def test_main_can_import_before_credits_are_known_when_building(tmp_path, capsys):
+    make_inbox(tmp_path, "santorai.jpeg")
+
+    code = run(tmp_path, "--allow-missing-credits", "santorini=santorai.jpeg")
+
+    assert code == 0
+    assert (tmp_path / "Assets.xcassets" / "santorini.imageset" / "santorini.jpg").exists()
+    assert "santorini" not in (tmp_path / "CREDITS.md").read_text()      # no made-up credit
+    assert "no credit yet" in capsys.readouterr().err
+
+
+def test_main_checks_every_pair_before_writing_anything(tmp_path, capsys):
+    make_inbox(tmp_path, "jane-doe-AbCdEfGhIjK-unsplash.jpg")
+
+    with pytest.raises(SystemExit) as raised:
+        run(tmp_path, "kyoto=jane-doe-AbCdEfGhIjK-unsplash.jpg", "santorini=missing.jpg")
+
+    assert raised.value.code == 2
+    assert "missing.jpg" in capsys.readouterr().err
+    assert not (tmp_path / "Assets.xcassets").exists()
+
+
+def test_budget_counts_photos_imported_earlier(tmp_path, monkeypatch):
+    make_inbox(tmp_path, "a-AbCdEfGhIjK-unsplash.jpg", "b-LqKhnDzSF-8-unsplash.jpg")
+    assert run(tmp_path, "kyoto=a-AbCdEfGhIjK-unsplash.jpg") == 0
+    one_photo = next((tmp_path / "Assets.xcassets").glob("*/*.jpg")).stat().st_size
+    monkeypatch.setattr(ip, "BUDGET_BYTES", int(one_photo * 1.5))
+
+    code = run(tmp_path, "--sources", str(write_sources(tmp_path, kyoto=("A", "AbCdEfGhIjK"))),
+               "santorini=b-LqKhnDzSF-8-unsplash.jpg")
+
+    assert code == 1
+
+
+def test_a_photo_imported_earlier_must_still_be_credited(tmp_path, capsys):
+    make_inbox(tmp_path, "a-AbCdEfGhIjK-unsplash.jpg", "santorai.jpeg")
+    assert run(tmp_path, "kyoto=a-AbCdEfGhIjK-unsplash.jpg") == 0
+    only_santorini = write_sources(tmp_path, santorini=("Jane Doe", "LqKhnDzSF-8"))
+
+    with pytest.raises(SystemExit) as raised:
+        run(tmp_path, "--sources", str(only_santorini), "santorini=santorai.jpeg")
+
+    assert raised.value.code == 2
+    assert "kyoto" in capsys.readouterr().err
+
+
+def test_credits_cover_both_batches_when_the_sources_list_them(tmp_path):
+    make_inbox(tmp_path, "a-AbCdEfGhIjK-unsplash.jpg", "santorai.jpeg")
+    assert run(tmp_path, "kyoto=a-AbCdEfGhIjK-unsplash.jpg") == 0
+    both = write_sources(tmp_path, kyoto=("A", "AbCdEfGhIjK"), santorini=("Jane Doe", "LqKhnDzSF-8"))
+
+    assert run(tmp_path, "--sources", str(both), "santorini=santorai.jpeg") == 0
+
+    text = (tmp_path / "CREDITS.md").read_text()
+    assert "| `kyoto` | A |" in text and "| `santorini` | Jane Doe |" in text
+
+
+@pytest.mark.parametrize(
+    "content, expected",
+    [
+        ("{not json", "not valid JSON"),
+        (json.dumps({"kyoto": {"photographer": "Jane Doe"}}), "needs a photographer and a url"),
+    ],
+)
+def test_broken_sources_file_is_a_clean_error(tmp_path, capsys, content, expected):
+    make_inbox(tmp_path, "santorai.jpeg")
+    sources = tmp_path / "sources.json"
+    sources.write_text(content)
+
+    with pytest.raises(SystemExit) as raised:
+        run(tmp_path, "--sources", str(sources), "santorini=santorai.jpeg")
+
+    assert raised.value.code == 2
+    assert expected in capsys.readouterr().err
+
+
+def test_explicit_sources_path_must_exist(tmp_path, capsys):
+    make_inbox(tmp_path, "santorai.jpeg")
+
+    with pytest.raises(SystemExit) as raised:
+        run(tmp_path, "--sources", str(tmp_path / "nope.json"), "santorini=santorai.jpeg")
+
+    assert raised.value.code == 2
+    assert "not found" in capsys.readouterr().err
