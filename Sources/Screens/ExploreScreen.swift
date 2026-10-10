@@ -121,7 +121,7 @@ private struct NearbySheet: View {
                     }
                 } header: {
                     Text("Nearby in Higashiyama")
-                        .foregroundStyle(Color.primary.opacity(0.72))
+                        .foregroundStyle(.supporting)
                 }
                 .listRowBackground(Color.clear)
             }
@@ -150,7 +150,7 @@ private struct NearbyRow: View {
                     .font(.headline)
                 Text("\(place.category) · \(place.distance)")
                     .font(.subheadline)
-                    .foregroundStyle(Color.primary.opacity(0.72))
+                    .foregroundStyle(.supporting)
             }
             Spacer()
             Label {
@@ -159,7 +159,7 @@ private struct NearbyRow: View {
                 Image(systemName: "star.fill")
             }
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(Color.primary.opacity(0.72))
+            .foregroundStyle(.supporting)
         }
         .accessibilityElement(children: .combine)
     }
