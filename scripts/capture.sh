@@ -98,6 +98,8 @@ for appearance in light dark; do
   done < "$ROOT/scripts/screens.txt"
 done
 
+python3 -I "$ROOT/scripts/optimize_screenshots.py" "$ROOT/screenshots"
+
 check_args=("$ROOT/screenshots")
 if [ -n "$ONLY" ]; then check_args+=(--only "$ONLY"); fi
 python3 -I "$ROOT/scripts/check_screenshots.py" "${check_args[@]}"
