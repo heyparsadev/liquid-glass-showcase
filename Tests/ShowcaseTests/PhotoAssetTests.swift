@@ -8,12 +8,7 @@ struct PhotoAssetTests {
 
     @Test(arguments: photos)
     func photoAssetExists(name: String) {
-        // TEMPORARY: the Kyoto photo has not been supplied yet. Delete this wrapper when it is.
-        withKnownIssue("the Kyoto photo has not been supplied yet", isIntermittent: true) {
-            #expect(UIImage(named: name) != nil, "missing image asset \(name)")
-        } when: {
-            name == "kyoto"
-        }
+        #expect(UIImage(named: name) != nil, "missing image asset \(name)")
     }
 
     @Test func sampleDataOnlyUsesKnownPhotos() {
