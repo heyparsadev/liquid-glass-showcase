@@ -18,6 +18,7 @@ struct ExploreScreen: View {
                     Map(initialPosition: .camera(SampleData.kyotoCamera))
                         .mapStyle(.imagery(elevation: .realistic))
                         .mapControlVisibility(.hidden)
+                        .safeAreaPadding(.bottom, 470)
                         .onMapCameraChange(frequency: .onEnd) { _ in
                             for place in SampleData.kyotoPlaces {
                                 pinPoints[place.id] = proxy.convert(place.coordinate, to: .local)
@@ -39,6 +40,7 @@ struct ExploreScreen: View {
                 .padding(.top, 8)
                 .padding(.trailing, 16)
         }
+        .toolbarColorScheme(.light, for: .statusBar)
         .sheet(isPresented: .constant(true)) {
             NearbySheet()
                 .presentationDetents([.height(120), .medium, .large], selection: $detent)
@@ -58,7 +60,7 @@ private struct PlacePin: View {
             .foregroundStyle(.white)
             .frame(width: 36, height: 36)
             .background(place.tint.gradient, in: .circle)
-            .overlay(Circle().stroke(.white, lineWidth: 2))
+            .overlay { Circle().stroke(.white, lineWidth: 2) }
             .shadow(color: .black.opacity(0.35), radius: 3, y: 1)
             .accessibilityLabel(place.name)
     }
@@ -103,13 +105,17 @@ private struct NearbySheet: View {
                         NearbyRow(place: place)
                     }
                 } header: {
+                    // Color.primary, not .primary: a section header would dim the hierarchical one.
                     Text("Nearby in Higashiyama")
-                        .foregroundStyle(.supporting)
+                        .foregroundStyle(Color.primary)
                 }
                 .listRowBackground(Color.clear)
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+            // The sheet doesn't clip its content to its rounded corners, so end the list between
+            // two rows and leave the corner area empty.
+            .padding(.bottom, 24)
             .navigationTitle("Kyoto")
             .toolbarTitleDisplayMode(.inline)
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always),
@@ -133,7 +139,6 @@ private struct NearbyRow: View {
                     .font(.headline)
                 Text("\(place.category) · \(place.distance)")
                     .font(.subheadline)
-                    .foregroundStyle(.supporting)
             }
             Spacer()
             Label {
@@ -142,7 +147,6 @@ private struct NearbyRow: View {
                 Image(systemName: "star.fill")
             }
             .font(.subheadline.weight(.semibold))
-            .foregroundStyle(.supporting)
         }
         .accessibilityElement(children: .combine)
     }

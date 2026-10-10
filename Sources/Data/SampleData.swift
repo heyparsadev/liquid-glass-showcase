@@ -7,7 +7,7 @@ enum SampleData {
     // MARK: Screen 1 · Explore (Kyoto, Higashiyama)
 
     static let kyotoCamera = MapCamera(
-        centerCoordinate: CLLocationCoordinate2D(latitude: 34.9920, longitude: 135.7822),
+        centerCoordinate: CLLocationCoordinate2D(latitude: 34.9998, longitude: 135.7822),
         distance: 2600, heading: 0, pitch: 55)
 
     static let kyotoPlaces: [NearbyPlace] = [
