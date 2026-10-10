@@ -48,23 +48,6 @@ struct ExploreScreen: View {
     }
 }
 
-/// The system sheet material takes on whatever is behind it. Imagery that is mid-gray there
-/// leaves the sheet's secondary text under 4.5:1, so lift it in light and sink it in dark.
-private struct SheetScrim: View {
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        let tint: Color = scheme == .dark ? .black.opacity(0.6) : .white.opacity(0.55)
-        LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: tint, location: 0.3),
-                               .init(color: tint, location: 1)],
-                       startPoint: .top, endPoint: .bottom)
-            .containerRelativeFrame(.vertical) { height, _ in height * 0.58 }
-            .frame(maxHeight: .infinity, alignment: .bottom)
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-    }
-}
-
 /// A map pin: content, so no glass.
 private struct PlacePin: View {
     let place: NearbyPlace
