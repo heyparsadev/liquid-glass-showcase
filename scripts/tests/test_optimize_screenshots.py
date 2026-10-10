@@ -41,3 +41,36 @@ def test_main_optimizes_every_png_under_root_and_reports(tmp_path, capsys):
 
     assert code == 0
     assert "optimized 2 file(s)" in capsys.readouterr().out
+
+
+def test_a_16_bit_png_is_left_alone(tmp_path):
+    path = tmp_path / "02-place.png"
+    Image.new("I;16", (400, 400), 1000).save(path, compress_level=1)       # a 16-bit grayscale PNG
+    before = path.read_bytes()
+
+    opt.optimize(path)
+
+    assert path.read_bytes() == before                                      # never cut to 8 bits
+
+
+def test_no_temporary_file_is_left_behind(tmp_path):
+    path = tmp_path / "02-place.png"
+    make_screenshot(path)
+
+    opt.optimize(path)
+
+    assert [p.name for p in tmp_path.iterdir()] == ["02-place.png"]
+
+
+def test_only_limits_the_work_to_one_screen(tmp_path):
+    for appearance in ("light", "dark"):
+        (tmp_path / appearance).mkdir()
+        make_screenshot(tmp_path / appearance / "02-place.png")
+        make_screenshot(tmp_path / appearance / "03-discover.png")
+    untouched = (tmp_path / "light" / "03-discover.png").read_bytes()
+
+    code = opt.main([str(tmp_path), "--only", "02-place"])
+
+    assert code == 0
+    assert (tmp_path / "light" / "03-discover.png").read_bytes() == untouched
+    assert (tmp_path / "light" / "02-place.png").stat().st_size < len(untouched)
