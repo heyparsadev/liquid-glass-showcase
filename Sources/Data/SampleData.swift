@@ -162,7 +162,7 @@ enum SampleData {
         photo: "iceland-cabin",
         rating: 4.9,
         reviewCount: "412 reviews",
-        dates: "Jul 12 – 15",
+        dates: "Aug 2 – 5",
         guests: "2 adults",
         room: "Entire cottage",
         nightlyRate: 340,
