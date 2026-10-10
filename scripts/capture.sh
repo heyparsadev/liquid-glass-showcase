@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Regenerates screenshots/{light,dark}/<NN-name>.png on an iOS 27 iPhone simulator.
 #
-#   scripts/capture.sh                  all six screens, light and dark
+#   scripts/capture.sh                  all seven screens, light and dark
 #   scripts/capture.sh --only 02-place  one screen, light and dark
+#
+# It also shrinks the PNGs without changing a pixel, checks them, and writes the 600 px JPEG
+# copies in screenshots/web/ that the README shows.
 #
 # Env: DEVICE_NAME (default "iPhone 18 Pro"), MAP_WAIT (default 25), WAIT (default 4).
 set -euo pipefail
@@ -59,7 +62,7 @@ xcrun simctl install "$UDID" "$ROOT/build/Build/Products/Debug-iphonesimulator/S
 
 # Another app in the foreground when ours launches puts a "< App name" return link in the status
 # bar. Close every other running app first so the status bar is clean.
-xcrun simctl spawn "$UDID" launchctl list 2>/dev/null \
+{ xcrun simctl spawn "$UDID" launchctl list 2>/dev/null || true; } \
   | sed -n 's/.*UIKitApplication:\([^[]*\)\[.*/\1/p' \
   | while IFS= read -r other; do
       [ "$other" = "$BUNDLE_ID" ] || xcrun simctl terminate "$UDID" "$other" >/dev/null 2>&1 || true
@@ -98,8 +101,8 @@ for appearance in light dark; do
   done < "$ROOT/scripts/screens.txt"
 done
 
-python3 -I "$ROOT/scripts/optimize_screenshots.py" "$ROOT/screenshots"
-
-check_args=("$ROOT/screenshots")
-if [ -n "$ONLY" ]; then check_args+=(--only "$ONLY"); fi
-python3 -I "$ROOT/scripts/check_screenshots.py" "${check_args[@]}"
+tool_args=("$ROOT/screenshots")
+if [ -n "$ONLY" ]; then tool_args+=(--only "$ONLY"); fi
+python3 -I "$ROOT/scripts/optimize_screenshots.py" "${tool_args[@]}"
+python3 -I "$ROOT/scripts/check_screenshots.py" "${tool_args[@]}"
+python3 -I "$ROOT/scripts/make_web_images.py" "${tool_args[@]}"       # only after the checker passed
