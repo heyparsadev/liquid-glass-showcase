@@ -5,10 +5,16 @@ Run from the repo root, with -I because the photos are downloaded files:
 
   python3 -I scripts/import_photos.py kyoto=<file>.jpg santorini=<file>.jpg ...
 
-For each slug=file pair (file is in --inbox, named the way Unsplash names downloads,
-"<photographer>-<photo-id>-unsplash.jpg") this resizes the long edge to at most
+For each slug=file pair (file is in --inbox) this resizes the long edge to at most
 2000 px, drops metadata, saves JPEG quality 80 into <assets>/<slug>.imageset, and
 writes CREDITS.md. It exits 1 if the processed photos are over the 4 MB budget.
+
+The photographer comes from the --sources JSON file when it lists the slug:
+
+  {"kyoto": {"photographer": "Jane Doe", "url": "https://unsplash.com/photos/<title>-<id>"}}
+
+and otherwise from the file name, when it is named the way Unsplash names downloads,
+"<photographer>-<photo-id>-unsplash.jpg".
 """
 from __future__ import annotations
 
@@ -19,12 +25,13 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageFile, ImageOps
 
 MAX_EDGE = 2000
 QUALITY = 80
 BUDGET_BYTES = 4 * 1024 * 1024
 _UNSPLASH_NAME = re.compile(r"^(?P<photographer>.+)-(?P<id>[A-Za-z0-9_-]{11})-unsplash\.jpe?g$")
+_UNSPLASH_URL = re.compile(r"https://unsplash\.com/photos/(?:[^/?#]*-)?(?P<id>[A-Za-z0-9_-]{11})/?")
 
 
 @dataclass(frozen=True)
@@ -46,6 +53,28 @@ def parse_unsplash_filename(name: str) -> tuple[str, str]:
     return photographer, match["id"]
 
 
+def photo_id_from_url(url: str) -> str:
+    match = _UNSPLASH_URL.fullmatch(url.partition("?")[0])
+    if not match:
+        raise ValueError(f"not an Unsplash photo URL: {url}")
+    return match["id"]
+
+
+def credit_for(slug: str, filename: str, sources: dict[str, dict[str, str]]) -> Credit:
+    """The credit from the sources file when it lists the slug, else from the file name."""
+    if slug in sources:
+        entry = sources[slug]
+        return Credit(slug, entry["photographer"], photo_id_from_url(entry["url"]))
+    try:
+        photographer, photo_id = parse_unsplash_filename(filename)
+    except ValueError:
+        raise ValueError(
+            f"no photographer known: {filename} is not an Unsplash download name "
+            f"and the sources file has no entry for {slug}"
+        ) from None
+    return Credit(slug, photographer, photo_id)
+
+
 def fit_long_edge(size: tuple[int, int], max_edge: int = MAX_EDGE) -> tuple[int, int]:
     width, height = size
     long_edge = max(width, height)
@@ -56,9 +85,16 @@ def fit_long_edge(size: tuple[int, int], max_edge: int = MAX_EDGE) -> tuple[int,
 
 
 def process_image(src: Path, dst: Path, max_edge: int = MAX_EDGE, quality: int = QUALITY) -> int:
-    with Image.open(src) as original:
-        icc = original.info.get("icc_profile")
-        image = ImageOps.exif_transpose(original).convert("RGB")
+    # Some downloads lose their last bytes. A progressive JPEG then only misses its final
+    # refinement scan, so the picture is intact: allow it while decoding, then restore.
+    tolerated = ImageFile.LOAD_TRUNCATED_IMAGES
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+    try:
+        with Image.open(src) as original:
+            icc = original.info.get("icc_profile")
+            image = ImageOps.exif_transpose(original).convert("RGB")
+    finally:
+        ImageFile.LOAD_TRUNCATED_IMAGES = tolerated
     size = fit_long_edge(image.size, max_edge)
     if size != image.size:
         image = image.resize(size, Image.LANCZOS)
@@ -97,20 +133,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--inbox", type=Path, default=Path("photos/inbox"))
     parser.add_argument("--assets", type=Path, default=Path("Resources/Assets.xcassets"))
     parser.add_argument("--credits", type=Path, default=Path("CREDITS.md"))
+    parser.add_argument("--sources", type=Path, default=Path("photos/sources.json"),
+                        help="JSON file with {slug: {photographer, url}} for files not named by Unsplash")
     parser.add_argument("pairs", nargs="+", metavar="slug=file")
     args = parser.parse_args(argv)
 
+    sources = json.loads(args.sources.read_text()) if args.sources.exists() else {}
     credits: list[Credit] = []
     total = 0
     for pair in args.pairs:
         slug, separator, filename = pair.partition("=")
         if not separator or not slug or not filename:
             parser.error(f"expected slug=file, got {pair!r}")
-        photographer, photo_id = parse_unsplash_filename(filename)
+        try:
+            credit = credit_for(slug, filename, sources)
+        except ValueError as problem:
+            parser.error(f"{slug}: {problem}")
         imageset = args.assets / f"{slug}.imageset"
         total += process_image(args.inbox / filename, imageset / f"{slug}.jpg")
         write_contents(imageset, slug)
-        credits.append(Credit(slug, photographer, photo_id))
+        credits.append(credit)
 
     args.credits.write_text(credits_markdown(credits))
     print(f"imported {len(credits)} photo(s), {total / 1_048_576:.1f} MB")

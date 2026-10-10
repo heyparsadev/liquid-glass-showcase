@@ -1,4 +1,5 @@
 import json
+import random
 
 import pytest
 from PIL import Image
@@ -92,3 +93,76 @@ def test_main_fails_when_over_budget(tmp_path, monkeypatch, capsys):
 
     assert code == 1
     assert "budget" in capsys.readouterr().err
+
+
+def make_noisy_progressive_jpeg(path, size=(800, 600)):
+    noise = random.Random(0).randbytes(size[0] * size[1] * 3)
+    Image.frombytes("RGB", size, noise).save(path, "JPEG", quality=90, progressive=True)
+
+
+def test_process_image_accepts_a_jpeg_missing_its_last_bytes(tmp_path):
+    src = tmp_path / "cut.jpg"
+    make_noisy_progressive_jpeg(src)
+    src.write_bytes(src.read_bytes()[:-300])
+    with pytest.raises(OSError):            # the premise: Pillow rejects such a file by default
+        with Image.open(src) as probe:
+            probe.load()
+    dst = tmp_path / "out.jpg"
+
+    ip.process_image(src, dst)
+
+    with Image.open(dst) as out:
+        out.load()                          # the re-encoded file is complete
+        assert out.size == (800, 600)
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("https://unsplash.com/photos/AbCdEfGhIjK", "AbCdEfGhIjK"),
+        ("https://unsplash.com/photos/white-houses-LqKhnDzSF-8", "LqKhnDzSF-8"),
+        ("https://unsplash.com/photos/white-houses-AbCdEfGhIjK?utm_source=x", "AbCdEfGhIjK"),
+    ],
+)
+def test_photo_id_from_url(url, expected):
+    assert ip.photo_id_from_url(url) == expected
+
+
+def test_photo_id_from_url_rejects_other_hosts():
+    with pytest.raises(ValueError):
+        ip.photo_id_from_url("https://example.com/photos/AbCdEfGhIjK")
+
+
+def test_main_reads_credits_from_a_sources_file_when_the_name_is_not_unsplash_style(tmp_path):
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    make_jpeg(inbox / "santorai.jpeg")
+    sources = tmp_path / "sources.json"
+    sources.write_text(json.dumps({
+        "santorini": {"photographer": "Jane Doe", "url": "https://unsplash.com/photos/white-domes-AbCdEfGhIjK"},
+    }))
+    credits = tmp_path / "CREDITS.md"
+
+    code = ip.main([
+        "--inbox", str(inbox), "--assets", str(tmp_path / "a"), "--credits", str(credits),
+        "--sources", str(sources), "santorini=santorai.jpeg",
+    ])
+
+    assert code == 0
+    assert "| `santorini` | Jane Doe | https://unsplash.com/photos/AbCdEfGhIjK |" in credits.read_text()
+
+
+def test_main_asks_for_a_photographer_when_the_file_name_gives_none(tmp_path, capsys):
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    make_jpeg(inbox / "santorai.jpeg")
+
+    with pytest.raises(SystemExit) as raised:
+        ip.main([
+            "--inbox", str(inbox), "--assets", str(tmp_path / "a"), "--credits", str(tmp_path / "c.md"),
+            "--sources", str(tmp_path / "missing.json"), "santorini=santorai.jpeg",
+        ])
+
+    assert raised.value.code == 2
+    err = capsys.readouterr().err
+    assert "photographer" in err and "santorini" in err
